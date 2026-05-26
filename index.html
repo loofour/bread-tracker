@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#ffffff">
+  <title>Bread Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #111; padding: 1rem; max-width: 600px; margin: 0 auto; }
+    h1 { font-size: 20px; font-weight: 500; margin-bottom: 1rem; }
+    .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 1rem; }
+    .stat { background: white; border-radius: 10px; padding: 12px; border: 0.5px solid #e0e0e0; }
+    .stat-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+    .stat-val { font-size: 22px; font-weight: 500; }
+    .toolbar { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+    .toolbar input, .toolbar select { flex: 1; min-width: 120px; padding: 8px 10px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; background: white; }
+    .btn { padding: 8px 14px; border: 0.5px solid #ddd; border-radius: 8px; background: white; font-size: 13px; cursor: pointer; }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: #111; color: white; border-color: #111; }
+    .btn-danger { color: #c0392b; }
+    .btn-success { color: #27ae60; }
+    .card { background: white; border: 0.5px solid #e0e0e0; border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+    .card-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 0.5px solid #f0f0f0; }
+    .avatar { width: 38px; height: 38px; border-radius: 50%; background: #e8f0fe; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: #1a73e8; flex-shrink: 0; }
+    .card-name { font-weight: 500; font-size: 15px; }
+    .card-phone { font-size: 12px; color: #888; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; margin-left: auto; }
+    .paid { background: #e8f5e9; color: #2e7d32; }
+    .unpaid { background: #fdecea; color: #c62828; }
+    .pending { background: #fff8e1; color: #f57f17; }
+    .card-body { padding: 12px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
+    .field-label { color: #888; font-size: 11px; margin-bottom: 2px; }
+    .field-val { font-size: 13px; font-weight: 500; }
+    .card-footer { padding: 8px 14px; border-top: 0.5px solid #f0f0f0; display: flex; gap: 8px; justify-content: flex-end; }
+    .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 100; }
+    .modal { background: white; border-radius: 14px; padding: 1.2rem; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { font-size: 16px; font-weight: 500; margin-bottom: 1rem; }
+    .form-row { margin-bottom: 10px; }
+    .form-row label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
+    .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 8px 10px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; }
+    .form-row textarea { height: 60px; resize: none; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1rem; }
+    .empty { text-align: center; padding: 2rem; color: #888; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+<h1>Bread Tracker</h1>
+
+<div class="stats">
+  <div class="stat"><div class="stat-label">Total orders</div><div class="stat-val" id="s-total">0</div></div>
+  <div class="stat"><div class="stat-label">Unpaid</div><div class="stat-val" id="s-unpaid" style="color:#c62828">0</div></div>
+  <div class="stat"><div class="stat-label">Today's orders</div><div class="stat-val" id="s-today">0</div></div>
+  <div class="stat"><div class="stat-label">Revenue (RM)</div><div class="stat-val" id="s-rev">0</div></div>
+</div>
+
+<div class="toolbar">
+  <input type="text" id="search" placeholder="Search..." oninput="render()">
+  <select id="filter" onchange="render()">
+    <option value="all">All</option>
+    <option value="unpaid">Unpaid</option>
+    <option value="paid">Paid</option>
+    <option value="pending">Pending</option>
+  </select>
+  <button class="btn btn-primary" onclick="showModal()">+ New order</button>
+</div>
+
+<div id="modal-area"></div>
+<div id="orders-list"></div>
+
+<script>
+let orders = JSON.parse(localStorage.getItem('bread-orders') || '[]');
+let nextId = parseInt(localStorage.getItem('bread-nextid') || '1');
+let editing = null;
+
+function save() {
+  localStorage.setItem('bread-orders', JSON.stringify(orders));
+  localStorage.setItem('bread-nextid', nextId);
+}
+
+function initials(name) {
+  return name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
+}
+
+function today() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function updateStats() {
+  document.getElementById('s-total').textContent = orders.length;
+  document.getElementById('s-unpaid').textContent = orders.filter(o => o.status === 'unpaid').length;
+  document.getElementById('s-today').textContent = orders.filter(o => o.date === today()).length;
+  const rev = orders.filter(o => o.status === 'paid').reduce((a, o) => a + o.price, 0);
+  document.getElementById('s-rev').textContent = 'RM ' + rev.toFixed(2);
+}
+
+function render() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const f = document.getElementById('filter').value;
+  let filtered = orders.filter(o => {
+    const match = o.name.toLowerCase().includes(q) || o.bread.toLowerCase().includes(q);
+    const sf = f === 'all' || o.status === f;
+    return match && sf;
+  });
+  const list = document.getElementById('orders-list');
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty">No orders found</div>';
+    updateStats();
+    return;
+  }
+  list.innerHTML = filtered.map(o => `
+    <div class="card">
+      <div class="card-header">
+        <div class="avatar">${initials(o.name)}</div>
+        <div>
+          <div class="card-name">${o.name}</div>
+          <div class="card-phone">${o.phone}</div>
+        </div>
+        <span class="badge ${o.status}">${o.status}</span>
+      </div>
+      <div class="card-body">
+        <div><div class="field-label">Bread order</div><div class="field-val">${o.bread}</div></div>
+        <div><div class="field-label">Price</div><div class="field-val">RM ${o.price.toFixed(2)}</div></div>
+        <div><div class="field-label">Date</div><div class="field-val">${o.date}</div></div>
+        <div><div class="field-label">Time</div><div class="field-val">${o.time}</div></div>
+        <div style="grid-column:1/-1"><div class="field-label">Address</div><div class="field-val">${o.address}</div></div>
+        ${o.notes ? `<div style="grid-column:1/-1"><div class="field-label">Notes</div><div class="field-val" style="color:#888">${o.notes}</div></div>` : ''}
+      </div>
+      <div class="card-footer">
+        ${o.status === 'unpaid' ? `<button class="btn btn-success" onclick="markPaid(${o.id})">Mark paid</button>` : ''}
+        <button class="btn" onclick="editOrder(${o.id})">Edit</button>
+        <button class="btn btn-danger" onclick="deleteOrder(${o.id})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+  updateStats();
+}
+
+function showModal(data) {
+  const d = data || { name:'', phone:'', bread:'', address:'', date:today(), time:'08:00', price:'', status:'unpaid', notes:'' };
+  document.getElementById('modal-area').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <h3>${editing ? 'Edit order' : 'New order'}</h3>
+        <div class="form-row"><label>Customer name</label><input id="f-name" value="${d.name}" placeholder="Full name"></div>
+        <div class="form-row"><label>Phone number</label><input id="f-phone" value="${d.phone}" placeholder="012-3456789"></div>
+        <div class="form-row"><label>Bread order</label><input id="f-bread" value="${d.bread}" placeholder="e.g. Sourdough x2"></div>
+        <div class="form-row"><label>Delivery address</label><textarea id="f-addr">${d.address}</textarea></div>
+        <div class="form-grid">
+          <div class="form-row"><label>Date</label><input type="date" id="f-date" value="${d.date}"></div>
+          <div class="form-row"><label>Time</label><input type="time" id="f-time" value="${d.time}"></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>Price (RM)</label><input type="number" id="f-price" value="${d.price}" placeholder="0.00"></div>
+          <div class="form-row"><label>Payment status</label>
+            <select id="f-status">
+              <option value="unpaid" ${d.status==='unpaid'?'selected':''}>Unpaid</option>
+              <option value="paid" ${d.status==='paid'?'selected':''}>Paid</option>
+              <option value="pending" ${d.status==='pending'?'selected':''}>Pending</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row"><label>Notes (optional)</label><textarea id="f-notes">${d.notes}</textarea></div>
+        <div class="form-actions">
+          <button class="btn" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveOrder()">${editing ? 'Save changes' : 'Add order'}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function closeModal() {
+  document.getElementById('modal-area').innerHTML = '';
+  editing = null;
+}
+
+function saveOrder() {
+  const o = {
+    id: editing || nextId++,
+    name: document.getElementById('f-name').value.trim(),
+    phone: document.getElementById('f-phone').value.trim(),
+    bread: document.getElementById('f-bread').value.trim(),
+    address: document.getElementById('f-addr').value.trim(),
+    date: document.getElementById('f-date').value,
+    time: document.getElementById('f-time').value,
+    price: parseFloat(document.getElementById('f-price').value) || 0,
+    status: document.getElementById('f-status').value,
+    notes: document.getElementById('f-notes').value.trim(),
+  };
+  if (!o.name || !o.bread) { alert('Please fill in customer name and bread order.'); return; }
+  if (editing) { orders = orders.map(x => x.id === editing ? o : x); }
+  else { orders.push(o); }
+  save();
+  closeModal();
+  render();
+}
+
+function editOrder(id) {
+  editing = id;
+  const o = orders.find(x => x.id === id);
+  showModal(o);
+}
+
+function deleteOrder(id) {
+  if (confirm('Delete this order?')) {
+    orders = orders.filter(x => x.id !== id);
+    save();
+    render();
+  }
+}
+
+function markPaid(id) {
+  orders = orders.map(o => o.id === id ? {...o, status:'paid'} : o);
+  save();
+  render();
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+}
+
+render();
+</script>
+</body>
+</html>

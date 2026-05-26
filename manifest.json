@@ -1,0 +1,21 @@
+{
+  "name": "Bread Tracker",
+  "short_name": "Bread",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111111",
+  "description": "Track bread orders and customers",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
