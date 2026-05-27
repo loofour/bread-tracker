@@ -340,6 +340,14 @@ function orderCardHTML(o, isHistory){
   const items=o.items||[];
   const breadStr=items.map(i=>`${breadLabel(i.code)} x${i.qty}`).join(', ');
   const payBadge=o.payMethod==='tng'?'T&G':'Cash';
+  
+  const receiptHtml = o.receiptUrl 
+    ? `<div class="receipt-container">
+         <div class="field-label">Receipt</div>
+         <img src="${o.receiptUrl}" class="receipt-preview" onclick="window.open('${o.receiptUrl}')">
+       </div>` 
+    : '';
+
   return `
     <div class="card">
       <div class="card-header">
@@ -353,13 +361,15 @@ function orderCardHTML(o, isHistory){
         <div><div class="field-label">Date & Time</div><div class="field-val">${o.date} ${o.time}</div></div>
         <div style="grid-column:1/-1"><div class="field-label">Address</div><div class="field-val">${o.address}</div></div>
         ${o.notes?`<div style="grid-column:1/-1"><div class="field-label">Notes</div><div class="field-val" style="color:#888">${o.notes}</div></div>`:''}
+        ${receiptHtml}
       </div>
       <div class="card-footer">
       ${!isHistory&&o.status==='unpaid'?`<button class="btn btn-success" onclick="markPaid(${o.id})">Mark paid</button>`:''}
-${!isHistory?`<button class="btn btn-warn" onclick="markComplete(${o.id})">Mark complete</button>`:''}
-        ${!isHistory?`<button class="btn" onclick="editOrder(${o.id})">Edit</button>`:''}
-        ${!isHistory?`<button class="btn btn-danger" onclick="deleteOrder(${o.id})">Delete</button>`:''}
-        ${isHistory?`<button class="btn btn-danger" onclick="deleteHistory(${o.id})">Delete</button>`:''}
+      ${!isHistory?`<button class="btn btn-warn" onclick="markComplete(${o.id})">Mark complete</button>`:''}
+      ${!isHistory?`<button class="btn" onclick="editOrder(${o.id})">Edit</button>`:''}
+      ${!isHistory?`<button class="btn btn-danger" onclick="deleteOrder(${o.id})">Delete</button>`:''}
+      ${isHistory?`<button class="btn btn-danger" onclick="deleteHistory(${o.id})">Delete</button>`:''}
+      ${isHistory?`<button class="btn btn-primary" onclick="triggerUpload(${o.id})">${o.receiptUrl ? 'Replace' : 'Upload'} Receipt</button>`:''}
       </div>
     </div>`;
 }
@@ -491,6 +501,45 @@ function populateCalcSelects(){
     const val=sel.value;
     sel.innerHTML='<option value="">Select bread...</option>'+MENU.map(m=>`<option value="${m.code}" ${val===m.code?'selected':''}>${m.code} - ${showName?m.name:m.code}</option>`).join('');
   });
+}
+
+function triggerUpload(id) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const fileName = `receipt_${id}_${Date.now()}.jpg`;
+      const { data: uploadData, error: uploadError } = await db.storage.from('receipts').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data: urlData } = db.storage.from('receipts').getPublicUrl(fileName);
+      const publicUrl = urlData.publicUrl;
+      await db.from('history').update({ receiptUrl: publicUrl }).eq('id', id);
+      await loadFromSupabase();
+      alert('Receipt uploaded successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Upload failed: ' + err.message);
+    }
+  };
+  input.click();
+}
+
+async function removeReceipt(id) {
+  if (!confirm('Remove this receipt?')) return;
+  try {
+    const { data } = await db.from('history').select('receiptUrl').eq('id', id).single();
+    if (data?.receiptUrl) {
+      const fileName = data.receiptUrl.split('/').pop();
+      await db.storage.from('receipts').remove([fileName]);
+    }
+    await db.from('history').update({ receiptUrl: null }).eq('id', id);
+    await loadFromSupabase();
+  } catch (err) {
+    alert('Error removing receipt: ' + err.message);
+  }
 }
 
 function addCalcRow(){
