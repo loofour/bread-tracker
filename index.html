@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#111111">
   <title>大叔面包</title>
   <link rel="manifest" href="manifest.json">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#111;max-width:600px;margin:0 auto;padding-bottom:70px}
@@ -17,10 +18,10 @@
     .slider:before{position:absolute;content:"";height:14px;width:14px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.3s}
     input:checked+.slider{background:#4caf50}
     input:checked+.slider:before{transform:translateX(16px)}
-    .tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:600px;background:white;border-top:0.5px solid #e0e0e0;display:grid;grid-template-columns:1fr 1fr 1fr;z-index:50}
-    .tab{padding:12px 8px;text-align:center;font-size:12px;color:#888;cursor:pointer;border:none;background:none}
+    .tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:600px;background:white;border-top:0.5px solid #e0e0e0;display:grid;grid-template-columns:repeat(6,1fr);z-index:50}
+    .tab{padding:10px 4px;text-align:center;font-size:10px;color:#888;cursor:pointer;border:none;background:none;line-height:1.3}
     .tab.active{color:#111;font-weight:500;border-top:2px solid #111}
-    .tab-icon{font-size:20px;display:block;margin-bottom:2px}
+    .tab-icon{font-size:16px;display:block;margin-bottom:2px}
     .page{display:none;padding:1rem}
     .page.active{display:block}
     .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:1rem}
@@ -46,6 +47,7 @@
     .pending{background:#fff8e1;color:#f57f17}
     .done-badge{background:#e8f5e9;color:#2e7d32}
     .todo-badge{background:#e8f0fe;color:#1a73e8}
+    .history-badge{background:#f3e5f5;color:#6a1b9a}
     .card-body{padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px}
     .card-body.single{grid-template-columns:1fr}
     .field-label{color:#888;font-size:11px;margin-bottom:2px}
@@ -71,7 +73,7 @@
     .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
     .section-title{font-size:13px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:0.05em}
     .recipe-card{background:white;border:0.5px solid #e0e0e0;border-radius:10px;padding:12px 14px;margin-bottom:8px}
-    .recipe-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .recipe-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px}
     .recipe-code{font-size:13px;font-weight:500;background:#e8f0fe;color:#1a73e8;padding:3px 8px;border-radius:6px}
     .recipe-name{font-size:14px;font-weight:500;flex:1;margin:0 8px}
     .recipe-ing{font-size:13px;color:#555;margin-top:4px}
@@ -81,7 +83,19 @@
     .calc-row select{flex:1;padding:7px 10px;border:0.5px solid #ddd;border-radius:8px;font-size:13px}
     .calc-row input{width:60px;padding:7px 10px;border:0.5px solid #ddd;border-radius:8px;font-size:13px;text-align:center}
     .calc-result{background:#f5f5f5;border-radius:8px;padding:10px 12px;margin-top:8px;font-size:13px;line-height:1.8}
-    .price-tag{font-size:11px;color:#888;padding:2px 6px;background:#f5f5f5;border-radius:4px;margin-left:4px}
+    .bread-line{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+    .bread-line select{flex:2;padding:7px 10px;border:0.5px solid #ddd;border-radius:8px;font-size:13px}
+    .bread-line input{width:55px;padding:7px 8px;border:0.5px solid #ddd;border-radius:8px;font-size:13px;text-align:center}
+    .contact-card{background:white;border:0.5px solid #e0e0e0;border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+    .contact-info{flex:1}
+    .contact-name{font-size:14px;font-weight:500}
+    .contact-sub{font-size:12px;color:#888;margin-top:2px}
+    .daily-item{background:white;border:0.5px solid #e0e0e0;border-radius:10px;padding:12px 14px;margin-bottom:8px}
+    .daily-bread{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid #f0f0f0;font-size:14px}
+    .daily-bread:last-child{border-bottom:none}
+    .daily-qty{font-weight:500;font-size:16px;color:#1a73e8}
+    .export-box{background:white;border:0.5px solid #e0e0e0;border-radius:12px;padding:14px;margin-bottom:1rem}
+    .export-box h4{font-size:14px;font-weight:500;margin-bottom:10px}
   </style>
 </head>
 <body>
@@ -97,9 +111,9 @@
 
 <div id="page-orders" class="page active">
   <div class="stats">
-    <div class="stat"><div class="stat-label">Total orders</div><div class="stat-val" id="s-total">0</div></div>
+    <div class="stat"><div class="stat-label">Active orders</div><div class="stat-val" id="s-total">0</div></div>
     <div class="stat"><div class="stat-label">Unpaid</div><div class="stat-val" id="s-unpaid" style="color:#c62828">0</div></div>
-    <div class="stat"><div class="stat-label">Today's orders</div><div class="stat-val" id="s-today">0</div></div>
+    <div class="stat"><div class="stat-label">Today</div><div class="stat-val" id="s-today">0</div></div>
     <div class="stat"><div class="stat-label">Revenue (RM)</div><div class="stat-val" id="s-rev">0</div></div>
   </div>
   <div class="toolbar">
@@ -113,6 +127,14 @@
     <button class="btn btn-primary" onclick="showOrderModal()">+ New order</button>
   </div>
   <div id="orders-list"></div>
+</div>
+
+<div id="page-daily" class="page">
+  <div class="form-row" style="margin-bottom:1rem">
+    <label>Select date</label>
+    <input type="date" id="daily-date" onchange="renderDaily()">
+  </div>
+  <div id="daily-list"></div>
 </div>
 
 <div id="page-schedule" class="page">
@@ -133,11 +155,10 @@
         <button class="btn btn-danger" style="padding:6px 10px" onclick="removeCalcRow(this)">✕</button>
       </div>
     </div>
-    <button class="btn" style="font-size:12px;margin-top:6px" onclick="addCalcRow()">+ Add another bread</button>
+    <button class="btn" style="font-size:12px;margin-top:6px" onclick="addCalcRow()">+ Add bread</button>
     <button class="btn btn-primary" style="font-size:12px;margin-top:6px;margin-left:6px" onclick="calculate()">Calculate</button>
     <div class="calc-result" id="calc-result" style="display:none"></div>
   </div>
-
   <div class="section-header">
     <span class="section-title">Shopping list</span>
     <button class="btn btn-primary" onclick="showIngModal()">+ Add item</button>
@@ -147,7 +168,6 @@
     <button class="btn btn-danger" style="font-size:12px" onclick="clearAll()">Clear all</button>
   </div>
   <div id="ingredients-list"></div>
-
   <div class="section-header" style="margin-top:1.2rem">
     <span class="section-title">Recipes</span>
     <button class="btn btn-primary" onclick="showRecipeModal()">+ Add recipe</button>
@@ -155,22 +175,46 @@
   <div id="recipes-list"></div>
 </div>
 
+<div id="page-history" class="page">
+  <div class="export-box">
+    <h4>Export to Excel</h4>
+    <div class="form-grid" style="margin-bottom:10px">
+      <div class="form-row"><label>From date</label><input type="date" id="export-from"></div>
+      <div class="form-row"><label>To date</label><input type="date" id="export-to"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" style="font-size:12px" onclick="exportExcel(false)">Export date range</button>
+      <button class="btn" style="font-size:12px" onclick="exportExcel(true)">Export all history</button>
+    </div>
+  </div>
+  <div class="toolbar">
+    <input type="text" id="history-search" placeholder="Search history..." oninput="renderHistory()">
+  </div>
+  <div id="history-list"></div>
+</div>
+
+<div id="page-contacts" class="page">
+  <div class="section-header">
+    <span class="section-title">Contacts</span>
+    <button class="btn btn-primary" onclick="showContactModal()">+ Add contact</button>
+  </div>
+  <input type="text" id="contact-search" placeholder="Search contacts..." oninput="renderContacts()" style="width:100%;padding:8px 10px;border:0.5px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:1rem;background:white">
+  <div id="contacts-list"></div>
+</div>
+
 <div id="modal-area"></div>
 
 <div class="tabs">
-  <button class="tab active" onclick="switchTab('orders')" id="tab-orders">
-    <span class="tab-icon">🧾</span>Orders
-  </button>
-  <button class="tab" onclick="switchTab('schedule')" id="tab-schedule">
-    <span class="tab-icon">🕐</span>Schedule
-  </button>
-  <button class="tab" onclick="switchTab('ingredients')" id="tab-ingredients">
-    <span class="tab-icon">🧂</span>Ingredients
-  </button>
+  <button class="tab active" onclick="switchTab('orders')" id="tab-orders"><span class="tab-icon">🧾</span>Orders</button>
+  <button class="tab" onclick="switchTab('daily')" id="tab-daily"><span class="tab-icon">📅</span>Daily</button>
+  <button class="tab" onclick="switchTab('schedule')" id="tab-schedule"><span class="tab-icon">🕐</span>Schedule</button>
+  <button class="tab" onclick="switchTab('ingredients')" id="tab-ingredients"><span class="tab-icon">🧂</span>Ingredients</button>
+  <button class="tab" onclick="switchTab('history')" id="tab-history"><span class="tab-icon">📦</span>History</button>
+  <button class="tab" onclick="switchTab('contacts')" id="tab-contacts"><span class="tab-icon">👤</span>Contacts</button>
 </div>
 
 <script>
-const MENU = [
+const MENU=[
   {code:'A1',name:'Artisan White Sourdough',price:18},
   {code:'A2',name:'Rye Sourdough',price:20},
   {code:'A3',name:'Rolled Oat Sourdough',price:20},
@@ -187,42 +231,70 @@ const MENU = [
   {code:'D2',name:'Double Chocolate',price:32},
 ];
 
-let orders = JSON.parse(localStorage.getItem('bread-orders')||'[]');
-let tasks = JSON.parse(localStorage.getItem('bread-tasks')||'[]');
-let ingredients = JSON.parse(localStorage.getItem('bread-ingredients')||'[]');
-let recipes = JSON.parse(localStorage.getItem('bread-recipes')||'[]');
-let nextOrderId = parseInt(localStorage.getItem('bread-oid')||'1');
-let nextTaskId = parseInt(localStorage.getItem('bread-tid')||'1');
-let nextIngId = parseInt(localStorage.getItem('bread-iid')||'1');
-let nextRecipeId = parseInt(localStorage.getItem('bread-rid')||'1');
-let editingOrder=null,editingTask=null,editingIng=null,editingRecipe=null;
-let showName = localStorage.getItem('bread-showname')==='true';
+let orders=JSON.parse(localStorage.getItem('bread-orders')||'[]');
+let history=JSON.parse(localStorage.getItem('bread-history')||'[]');
+let tasks=JSON.parse(localStorage.getItem('bread-tasks')||'[]');
+let ingredients=JSON.parse(localStorage.getItem('bread-ingredients')||'[]');
+let recipes=JSON.parse(localStorage.getItem('bread-recipes')||'[]');
+let contacts=JSON.parse(localStorage.getItem('bread-contacts')||'[]');
+let nextOrderId=parseInt(localStorage.getItem('bread-oid')||'1');
+let nextTaskId=parseInt(localStorage.getItem('bread-tid')||'1');
+let nextIngId=parseInt(localStorage.getItem('bread-iid')||'1');
+let nextRecipeId=parseInt(localStorage.getItem('bread-rid')||'1');
+let nextContactId=parseInt(localStorage.getItem('bread-cid')||'1');
+let editingOrder=null,editingTask=null,editingIng=null,editingRecipe=null,editingContact=null;
+let showName=localStorage.getItem('bread-showname')==='true';
 
-const titles={orders:'大叔面包',schedule:'Schedule',ingredients:'Ingredients'};
+const titles={orders:'大叔面包',daily:'Daily View',schedule:'Schedule',ingredients:'Ingredients',history:'History',contacts:'Contacts'};
 
 function save(){
   localStorage.setItem('bread-orders',JSON.stringify(orders));
+  localStorage.setItem('bread-history',JSON.stringify(history));
   localStorage.setItem('bread-tasks',JSON.stringify(tasks));
   localStorage.setItem('bread-ingredients',JSON.stringify(ingredients));
   localStorage.setItem('bread-recipes',JSON.stringify(recipes));
+  localStorage.setItem('bread-contacts',JSON.stringify(contacts));
   localStorage.setItem('bread-oid',nextOrderId);
   localStorage.setItem('bread-tid',nextTaskId);
   localStorage.setItem('bread-iid',nextIngId);
   localStorage.setItem('bread-rid',nextRecipeId);
+  localStorage.setItem('bread-cid',nextContactId);
   localStorage.setItem('bread-showname',showName);
 }
 
+function checkAutoHistory(){
+  const now=new Date();
+  const changed=[];
+  orders=orders.filter(o=>{
+    const dt=new Date(o.date+'T'+o.time);
+    if(dt<now){
+      history.push({...o,completedAt:now.toISOString()});
+      changed.push(o.id);
+      return false;
+    }
+    return true;
+  });
+  if(changed.length){save();}
+}
+
 function breadLabel(code){
-  const item = MENU.find(m=>m.code===code);
+  const item=MENU.find(m=>m.code===code);
   if(!item) return code;
-  return showName ? item.name : item.code;
+  return showName?item.name:item.code;
+}
+
+function breadLines(items){
+  if(!items||!items.length) return '';
+  return items.map(i=>`${breadLabel(i.code)} x${i.qty}`).join(', ');
 }
 
 function toggleNameMode(){
-  showName = document.getElementById('name-toggle').checked;
+  showName=document.getElementById('name-toggle').checked;
   save();
   renderOrders();
+  renderHistory();
   renderRecipes();
+  renderDaily();
   populateCalcSelects();
 }
 
@@ -232,6 +304,10 @@ function switchTab(tab){
   document.getElementById('page-'+tab).classList.add('active');
   document.getElementById('tab-'+tab).classList.add('active');
   document.getElementById('topbar-title').textContent=titles[tab];
+  if(tab==='daily'&&!document.getElementById('daily-date').value){
+    document.getElementById('daily-date').value=today();
+    renderDaily();
+  }
 }
 
 function today(){return new Date().toISOString().split('T')[0]}
@@ -241,41 +317,89 @@ function updateStats(){
   document.getElementById('s-total').textContent=orders.length;
   document.getElementById('s-unpaid').textContent=orders.filter(o=>o.status==='unpaid').length;
   document.getElementById('s-today').textContent=orders.filter(o=>o.date===today()).length;
-  const rev=orders.filter(o=>o.status==='paid').reduce((a,o)=>a+o.price,0);
+  const rev=orders.filter(o=>o.status==='paid').reduce((a,o)=>a+(o.totalPrice||0),0);
   document.getElementById('s-rev').textContent='RM '+rev.toFixed(2);
+}
+
+function orderCardHTML(o, isHistory){
+  const items=o.items||[];
+  const breadStr=items.map(i=>`${breadLabel(i.code)} x${i.qty}`).join(', ');
+  const payBadge=o.payMethod==='tng'?'T&G':'Cash';
+  return `
+    <div class="card">
+      <div class="card-header">
+        <div class="avatar">${initials(o.name)}</div>
+        <div><div class="card-name">${o.name}</div><div class="card-sub">${o.phone}</div></div>
+        <span class="badge ${o.status}">${o.status} · ${payBadge}</span>
+      </div>
+      <div class="card-body">
+        <div style="grid-column:1/-1"><div class="field-label">Bread order</div><div class="field-val">${breadStr}</div></div>
+        <div><div class="field-label">Total price</div><div class="field-val">RM ${(o.totalPrice||0).toFixed(2)}</div></div>
+        <div><div class="field-label">Date & Time</div><div class="field-val">${o.date} ${o.time}</div></div>
+        <div style="grid-column:1/-1"><div class="field-label">Address</div><div class="field-val">${o.address}</div></div>
+        ${o.notes?`<div style="grid-column:1/-1"><div class="field-label">Notes</div><div class="field-val" style="color:#888">${o.notes}</div></div>`:''}
+      </div>
+      <div class="card-footer">
+        ${!isHistory&&o.status==='unpaid'?`<button class="btn btn-success" onclick="markPaid(${o.id})">Mark paid</button>`:''}
+        ${!isHistory?`<button class="btn" onclick="editOrder(${o.id})">Edit</button>`:''}
+        ${!isHistory?`<button class="btn btn-danger" onclick="deleteOrder(${o.id})">Delete</button>`:''}
+        ${isHistory?`<button class="btn btn-danger" onclick="deleteHistory(${o.id})">Delete</button>`:''}
+      </div>
+    </div>`;
 }
 
 function renderOrders(){
   const q=document.getElementById('search').value.toLowerCase();
   const f=document.getElementById('filter').value;
   let filtered=orders.filter(o=>{
-    const match=o.name.toLowerCase().includes(q)||o.bread.toLowerCase().includes(q);
+    const items=o.items||[];
+    const breadStr=items.map(i=>i.code).join(' ').toLowerCase();
+    const match=o.name.toLowerCase().includes(q)||breadStr.includes(q);
     return match&&(f==='all'||o.status===f);
   });
   const list=document.getElementById('orders-list');
   if(!filtered.length){list.innerHTML='<div class="empty">No orders found</div>';updateStats();return;}
-  list.innerHTML=filtered.map(o=>`
-    <div class="card">
-      <div class="card-header">
-        <div class="avatar">${initials(o.name)}</div>
-        <div><div class="card-name">${o.name}</div><div class="card-sub">${o.phone}</div></div>
-        <span class="badge ${o.status}">${o.status}</span>
-      </div>
-      <div class="card-body">
-        <div><div class="field-label">Bread order</div><div class="field-val">${breadLabel(o.bread)} x${o.qty||1}</div></div>
-        <div><div class="field-label">Price</div><div class="field-val">RM ${o.price.toFixed(2)}</div></div>
-        <div><div class="field-label">Date</div><div class="field-val">${o.date}</div></div>
-        <div><div class="field-label">Time</div><div class="field-val">${o.time}</div></div>
-        <div style="grid-column:1/-1"><div class="field-label">Address</div><div class="field-val">${o.address}</div></div>
-        ${o.notes?`<div style="grid-column:1/-1"><div class="field-label">Notes</div><div class="field-val" style="color:#888">${o.notes}</div></div>`:''}
-      </div>
-      <div class="card-footer">
-        ${o.status==='unpaid'?`<button class="btn btn-success" onclick="markPaid(${o.id})">Mark paid</button>`:''}
-        <button class="btn" onclick="editOrder(${o.id})">Edit</button>
-        <button class="btn btn-danger" onclick="deleteOrder(${o.id})">Delete</button>
-      </div>
-    </div>`).join('');
+  list.innerHTML=filtered.map(o=>orderCardHTML(o,false)).join('');
   updateStats();
+}
+
+function renderHistory(){
+  const q=document.getElementById('history-search').value.toLowerCase();
+  let filtered=history.filter(o=>{
+    const items=o.items||[];
+    const breadStr=items.map(i=>i.code).join(' ').toLowerCase();
+    return o.name.toLowerCase().includes(q)||breadStr.includes(q);
+  });
+  const list=document.getElementById('history-list');
+  if(!filtered.length){list.innerHTML='<div class="empty">No history yet</div>';return;}
+  const sorted=[...filtered].sort((a,b)=>b.date>a.date?1:-1);
+  list.innerHTML=sorted.map(o=>orderCardHTML(o,true)).join('');
+}
+
+function renderDaily(){
+  const date=document.getElementById('daily-date').value;
+  if(!date){document.getElementById('daily-list').innerHTML='<div class="empty">Select a date</div>';return;}
+  const dayOrders=[...orders,...history].filter(o=>o.date===date);
+  const list=document.getElementById('daily-list');
+  if(!dayOrders.length){list.innerHTML='<div class="empty">No orders on this date</div>';return;}
+  const totals={};
+  dayOrders.forEach(o=>{
+    (o.items||[]).forEach(i=>{
+      totals[i.code]=(totals[i.code]||0)+i.qty;
+    });
+  });
+  const totalRevenue=dayOrders.reduce((a,o)=>a+(o.totalPrice||0),0);
+  list.innerHTML=`
+    <div class="daily-item">
+      <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:#888">${date} — ${dayOrders.length} order${dayOrders.length>1?'s':''} · RM ${totalRevenue.toFixed(2)}</div>
+      ${Object.entries(totals).map(([code,qty])=>`
+        <div class="daily-bread">
+          <span>${breadLabel(code)}</span>
+          <span class="daily-qty">x${qty}</span>
+        </div>`).join('')}
+    </div>
+    <div style="font-size:13px;font-weight:500;color:#888;margin-bottom:8px;margin-top:4px">Order details</div>
+    ${dayOrders.map(o=>orderCardHTML(o,history.includes(o))).join('')}`;
 }
 
 function renderSchedule(){
@@ -314,7 +438,7 @@ function renderIngredients(){
 
 function renderRecipes(){
   const list=document.getElementById('recipes-list');
-  if(!recipes.length){list.innerHTML='<div class="empty">No recipes yet. Add ingredients for each bread.</div>';return;}
+  if(!recipes.length){list.innerHTML='<div class="empty">No recipes yet.</div>';return;}
   list.innerHTML=recipes.map(r=>`
     <div class="recipe-card">
       <div class="recipe-header">
@@ -327,11 +451,28 @@ function renderRecipes(){
     </div>`).join('');
 }
 
+function renderContacts(){
+  const q=document.getElementById('contact-search').value.toLowerCase();
+  let filtered=contacts.filter(c=>c.name.toLowerCase().includes(q)||(c.waName||'').toLowerCase().includes(q)||(c.phone||'').includes(q));
+  const list=document.getElementById('contacts-list');
+  if(!filtered.length){list.innerHTML='<div class="empty">No contacts yet.</div>';return;}
+  list.innerHTML=filtered.map(c=>`
+    <div class="contact-card">
+      <div class="avatar">${initials(c.name)}</div>
+      <div class="contact-info">
+        <div class="contact-name">${c.name}</div>
+        <div class="contact-sub">${c.phone}${c.waName?' · WA: '+c.waName:''}${c.tngName?' · T&G: '+c.tngName:''}</div>
+        ${c.address?`<div class="contact-sub">${c.address}</div>`:''}
+      </div>
+      <button class="btn" style="padding:4px 10px;font-size:12px" onclick="editContact(${c.id})">Edit</button>
+      <button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="deleteContact(${c.id})">✕</button>
+    </div>`).join('');
+}
+
 function populateCalcSelects(){
   document.querySelectorAll('.calc-bread-select').forEach(sel=>{
     const val=sel.value;
-    sel.innerHTML='<option value="">Select bread...</option>'+
-      MENU.map(m=>`<option value="${m.code}" ${val===m.code?'selected':''}>${m.code} - ${showName?m.name:m.code}</option>`).join('');
+    sel.innerHTML='<option value="">Select bread...</option>'+MENU.map(m=>`<option value="${m.code}" ${val===m.code?'selected':''}>${m.code} - ${showName?m.name:m.code}</option>`).join('');
   });
 }
 
@@ -357,12 +498,8 @@ function calculate(){
     if(!code) return;
     hasSelection=true;
     const recipe=recipes.find(r=>r.code===code);
-    if(!recipe||!recipe.ingredients){
-      totals[`${code} (no recipe)`]=(totals[`${code} (no recipe)`]||0)+qty;
-      return;
-    }
-    const lines=recipe.ingredients.split('\n').filter(l=>l.trim());
-    lines.forEach(line=>{
+    if(!recipe||!recipe.ingredients){totals[`${code} (no recipe)`]=(totals[`${code} (no recipe)`]||0)+qty;return;}
+    recipe.ingredients.split('\n').filter(l=>l.trim()).forEach(line=>{
       const parts=line.split(':');
       if(parts.length<2) return;
       const ingName=parts[0].trim();
@@ -373,45 +510,102 @@ function calculate(){
         const unit=match[2].trim();
         const key=`${ingName}|${unit}`;
         totals[key]=(totals[key]||0)+amount;
-      } else {
-        totals[ingName]=(totals[ingName]||0)+qty;
-      }
+      } else {totals[ingName]=(totals[ingName]||0)+qty;}
     });
   });
   const result=document.getElementById('calc-result');
   if(!hasSelection){result.style.display='none';return;}
-  if(!Object.keys(totals).length){result.style.display='block';result.innerHTML='No recipes found. Add recipes first.';return;}
+  if(!Object.keys(totals).length){result.style.display='block';result.innerHTML='No recipes found.';return;}
   result.style.display='block';
-  result.innerHTML='<strong>Total ingredients needed:</strong><br>'+
-    Object.entries(totals).map(([k,v])=>{
-      const parts=k.split('|');
-      return `• ${parts[0]}: <strong>${Number.isInteger(v)?v:v.toFixed(1)} ${parts[1]||''}</strong>`;
-    }).join('<br>');
+  result.innerHTML='<strong>Total ingredients needed:</strong><br>'+Object.entries(totals).map(([k,v])=>{const p=k.split('|');return `• ${p[0]}: <strong>${Number.isInteger(v)?v:v.toFixed(1)} ${p[1]||''}</strong>`;}).join('<br>');
+}
+
+function exportExcel(all){
+  let data=all?history:history.filter(o=>{
+    const from=document.getElementById('export-from').value;
+    const to=document.getElementById('export-to').value;
+    if(!from||!to){alert('Please select a date range.');return false;}
+    return o.date>=from&&o.date<=to;
+  });
+  if(!data.length){alert('No orders found for this range.');return;}
+  const rows=data.map(o=>({
+    Date:o.date,
+    Time:o.time,
+    Customer:o.name,
+    Phone:o.phone,
+    'Bread Order':(o.items||[]).map(i=>`${i.code} x${i.qty}`).join(', '),
+    'Total Price (RM)':(o.totalPrice||0).toFixed(2),
+    Status:o.status,
+    'Payment Method':o.payMethod==='tng'?'Touch & Go':'Cash',
+    Address:o.address,
+    Notes:o.notes||'',
+  }));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,'Orders',ws);
+  XLSX.writeFile(wb,`bread-orders-${today()}.xlsx`);
+}
+
+function getBreadRowsHTML(items){
+  return (items||[{code:'A1',qty:1}]).map((item,i)=>`
+    <div class="bread-line" id="bread-line-${i}">
+      <select class="bl-code" onchange="recalcTotal()">
+        ${MENU.map(m=>`<option value="${m.code}" ${item.code===m.code?'selected':''}>${m.code} - ${m.name}</option>`).join('')}
+      </select>
+      <input type="number" class="bl-qty" value="${item.qty}" min="1" onchange="recalcTotal()">
+      <button class="btn btn-danger" style="padding:6px 10px" onclick="removeBreadLine(this)">✕</button>
+    </div>`).join('');
+}
+
+function recalcTotal(){
+  const lines=document.querySelectorAll('.bread-line');
+  let total=0;
+  lines.forEach(line=>{
+    const code=line.querySelector('.bl-code').value;
+    const qty=parseInt(line.querySelector('.bl-qty').value)||1;
+    const item=MENU.find(m=>m.code===code);
+    if(item) total+=item.price*qty;
+  });
+  const el=document.getElementById('f-total');
+  if(el) el.value=total.toFixed(2);
+}
+
+function removeBreadLine(btn){
+  const lines=document.querySelectorAll('.bread-line');
+  if(lines.length>1) btn.parentElement.remove();
+  recalcTotal();
+}
+
+function addBreadLine(){
+  const container=document.getElementById('bread-lines-container');
+  const div=document.createElement('div');
+  div.className='bread-line';
+  div.innerHTML=`<select class="bl-code" onchange="recalcTotal()">${MENU.map(m=>`<option value="${m.code}">${m.code} - ${m.name}</option>`).join('')}</select><input type="number" class="bl-qty" value="1" min="1" onchange="recalcTotal()"><button class="btn btn-danger" style="padding:6px 10px" onclick="removeBreadLine(this)">✕</button>`;
+  container.appendChild(div);
+  recalcTotal();
 }
 
 function showOrderModal(data){
-  const d=data||{name:'',phone:'',bread:'A1',qty:1,address:'',date:today(),time:'08:00',price:18,status:'unpaid',notes:''};
+  const d=data||{name:'',phone:'',items:[{code:'A1',qty:1}],address:'',date:today(),time:'08:00',totalPrice:18,status:'unpaid',payMethod:'cash',notes:''};
+  const contactOptions=contacts.map(c=>`<option value="${c.id}">${c.name} (${c.phone})</option>`).join('');
   document.getElementById('modal-area').innerHTML=`
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
         <h3>${editingOrder?'Edit order':'New order'}</h3>
+        ${contacts.length?`<div class="form-row"><label>Load from contacts</label><select id="f-contact" onchange="fillFromContact()"><option value="">Select contact...</option>${contactOptions}</select></div>`:''}
         <div class="form-row"><label>Customer name</label><input id="f-name" value="${d.name}" placeholder="Full name"></div>
         <div class="form-row"><label>Phone number</label><input id="f-phone" value="${d.phone}" placeholder="012-3456789"></div>
-        <div class="form-grid">
-          <div class="form-row"><label>Bread</label>
-            <select id="f-bread" onchange="autoPrice()">
-              ${MENU.map(m=>`<option value="${m.code}" ${d.bread===m.code?'selected':''}>${m.code} - ${m.name}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-row"><label>Quantity</label><input type="number" id="f-qty" value="${d.qty||1}" min="1" onchange="autoPrice()"></div>
-        </div>
         <div class="form-row"><label>Delivery address</label><textarea id="f-addr">${d.address}</textarea></div>
+        <div class="form-row"><label>Bread items</label>
+          <div id="bread-lines-container">${getBreadRowsHTML(d.items)}</div>
+          <button class="btn" style="font-size:12px;margin-top:6px" onclick="addBreadLine()">+ Add bread</button>
+        </div>
         <div class="form-grid">
           <div class="form-row"><label>Date</label><input type="date" id="f-date" value="${d.date}"></div>
           <div class="form-row"><label>Time</label><input type="time" id="f-time" value="${d.time}"></div>
         </div>
         <div class="form-grid">
-          <div class="form-row"><label>Price (RM)</label><input type="number" id="f-price" value="${d.price}" placeholder="0.00"></div>
+          <div class="form-row"><label>Total price (RM)</label><input type="number" id="f-total" value="${d.totalPrice||0}" placeholder="0.00"></div>
           <div class="form-row"><label>Payment</label>
             <select id="f-status">
               <option value="unpaid" ${d.status==='unpaid'?'selected':''}>Unpaid</option>
@@ -419,6 +613,12 @@ function showOrderModal(data){
               <option value="pending" ${d.status==='pending'?'selected':''}>Pending</option>
             </select>
           </div>
+        </div>
+        <div class="form-row"><label>Payment method</label>
+          <select id="f-paymethod">
+            <option value="cash" ${d.payMethod==='cash'?'selected':''}>Cash</option>
+            <option value="tng" ${d.payMethod==='tng'?'selected':''}>Touch & Go</option>
+          </select>
         </div>
         <div class="form-row"><label>Notes (optional)</label><textarea id="f-notes">${d.notes}</textarea></div>
         <div class="form-actions">
@@ -429,11 +629,14 @@ function showOrderModal(data){
     </div>`;
 }
 
-function autoPrice(){
-  const code=document.getElementById('f-bread').value;
-  const qty=parseInt(document.getElementById('f-qty').value)||1;
-  const item=MENU.find(m=>m.code===code);
-  if(item) document.getElementById('f-price').value=(item.price*qty).toFixed(2);
+function fillFromContact(){
+  const id=parseInt(document.getElementById('f-contact').value);
+  if(!id) return;
+  const c=contacts.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('f-name').value=c.name;
+  document.getElementById('f-phone').value=c.phone||'';
+  document.getElementById('f-addr').value=c.address||'';
 }
 
 function showTaskModal(data){
@@ -463,7 +666,7 @@ function showIngModal(data){
       <div class="modal">
         <h3>${editingIng?'Edit item':'New item'}</h3>
         <div class="form-row"><label>Ingredient name</label><input id="i-name" value="${d.name}" placeholder="e.g. Bread flour"></div>
-        <div class="form-row"><label>Quantity</label><input id="i-qty" value="${d.qty}" placeholder="e.g. 2kg, 500g, 3 eggs"></div>
+        <div class="form-row"><label>Quantity</label><input id="i-qty" value="${d.qty}" placeholder="e.g. 2kg, 500g"></div>
         <div class="form-actions">
           <button class="btn" onclick="closeModal()">Cancel</button>
           <button class="btn btn-primary" onclick="saveIng()">${editingIng?'Save':'Add item'}</button>
@@ -479,13 +682,11 @@ function showRecipeModal(data){
       <div class="modal">
         <h3>${editingRecipe?'Edit recipe':'New recipe'}</h3>
         <div class="form-row"><label>Bread</label>
-          <select id="r-code">
-            ${MENU.map(m=>`<option value="${m.code}" ${d.code===m.code?'selected':''}>${m.code} - ${m.name}</option>`).join('')}
-          </select>
+          <select id="r-code">${MENU.map(m=>`<option value="${m.code}" ${d.code===m.code?'selected':''}>${m.code} - ${m.name}</option>`).join('')}</select>
         </div>
         <div class="form-row">
-          <label>Ingredients (one per line, format: name: amount unit)</label>
-          <textarea id="r-ing" style="height:140px" placeholder="flour: 500 gram&#10;water: 350 gram&#10;salt: 10 gram&#10;yeast: 5 gram">${d.ingredients}</textarea>
+          <label>Ingredients (one per line: name: amount unit)</label>
+          <textarea id="r-ing" style="height:140px" placeholder="flour: 500 gram&#10;water: 350 gram&#10;salt: 10 gram">${d.ingredients}</textarea>
         </div>
         <div class="form-actions">
           <button class="btn" onclick="closeModal()">Cancel</button>
@@ -495,22 +696,46 @@ function showRecipeModal(data){
     </div>`;
 }
 
-function closeModal(){document.getElementById('modal-area').innerHTML='';editingOrder=null;editingTask=null;editingIng=null;editingRecipe=null;}
+function showContactModal(data){
+  const d=data||{name:'',phone:'',waName:'',tngName:'',address:''};
+  document.getElementById('modal-area').innerHTML=`
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <h3>${editingContact?'Edit contact':'New contact'}</h3>
+        <div class="form-row"><label>Real name</label><input id="c-name" value="${d.name}" placeholder="Full name"></div>
+        <div class="form-row"><label>Phone number</label><input id="c-phone" value="${d.phone||''}" placeholder="012-3456789"></div>
+        <div class="form-row"><label>WhatsApp name (if different)</label><input id="c-wa" value="${d.waName||''}" placeholder="Name shown on WhatsApp"></div>
+        <div class="form-row"><label>Touch & Go name (if different)</label><input id="c-tng" value="${d.tngName||''}" placeholder="Name shown on T&G"></div>
+        <div class="form-row"><label>Address (optional)</label><textarea id="c-addr">${d.address||''}</textarea></div>
+        <div class="form-actions">
+          <button class="btn" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveContact()">${editingContact?'Save':'Add contact'}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function closeModal(){document.getElementById('modal-area').innerHTML='';editingOrder=null;editingTask=null;editingIng=null;editingRecipe=null;editingContact=null;}
 
 function saveOrder(){
-  const code=document.getElementById('f-bread').value;
-  const menuItem=MENU.find(m=>m.code===code);
+  const lines=document.querySelectorAll('.bread-line');
+  const items=[];
+  lines.forEach(line=>{
+    const code=line.querySelector('.bl-code').value;
+    const qty=parseInt(line.querySelector('.bl-qty').value)||1;
+    items.push({code,qty});
+  });
   const o={
     id:editingOrder||nextOrderId++,
     name:document.getElementById('f-name').value.trim(),
     phone:document.getElementById('f-phone').value.trim(),
-    bread:code,
-    qty:parseInt(document.getElementById('f-qty').value)||1,
+    items:items,
     address:document.getElementById('f-addr').value.trim(),
     date:document.getElementById('f-date').value,
     time:document.getElementById('f-time').value,
-    price:parseFloat(document.getElementById('f-price').value)||0,
+    totalPrice:parseFloat(document.getElementById('f-total').value)||0,
     status:document.getElementById('f-status').value,
+    payMethod:document.getElementById('f-paymethod').value,
     notes:document.getElementById('f-notes').value.trim(),
   };
   if(!o.name){alert('Please fill in customer name.');return;}
@@ -520,14 +745,7 @@ function saveOrder(){
 }
 
 function saveTask(){
-  const t={
-    id:editingTask||nextTaskId++,
-    title:document.getElementById('t-title').value.trim(),
-    date:document.getElementById('t-date').value,
-    time:document.getElementById('t-time').value,
-    notes:document.getElementById('t-notes').value.trim(),
-    done:false,
-  };
+  const t={id:editingTask||nextTaskId++,title:document.getElementById('t-title').value.trim(),date:document.getElementById('t-date').value,time:document.getElementById('t-time').value,notes:document.getElementById('t-notes').value.trim(),done:false};
   if(!t.title){alert('Please enter a task name.');return;}
   if(editingTask){const old=tasks.find(x=>x.id===editingTask);t.done=old?old.done:false;tasks=tasks.map(x=>x.id===editingTask?t:x);}
   else{tasks.push(t);}
@@ -545,30 +763,32 @@ function saveIng(){
 function saveRecipe(){
   const code=document.getElementById('r-code').value;
   const menuItem=MENU.find(m=>m.code===code);
-  const r={
-    id:editingRecipe||nextRecipeId++,
-    code:code,
-    breadName:menuItem?menuItem.name:code,
-    ingredients:document.getElementById('r-ing').value.trim(),
-  };
+  const r={id:editingRecipe||nextRecipeId++,code:code,breadName:menuItem?menuItem.name:code,ingredients:document.getElementById('r-ing').value.trim()};
   if(editingRecipe){recipes=recipes.map(x=>x.id===editingRecipe?r:x);}
-  else{
-    const existing=recipes.find(x=>x.code===code);
-    if(existing){recipes=recipes.map(x=>x.code===code?r:x);}
-    else{recipes.push(r);}
-  }
+  else{const existing=recipes.find(x=>x.code===code);if(existing){recipes=recipes.map(x=>x.code===code?r:x);}else{recipes.push(r);}}
   save();closeModal();renderRecipes();
+}
+
+function saveContact(){
+  const c={id:editingContact||nextContactId++,name:document.getElementById('c-name').value.trim(),phone:document.getElementById('c-phone').value.trim(),waName:document.getElementById('c-wa').value.trim(),tngName:document.getElementById('c-tng').value.trim(),address:document.getElementById('c-addr').value.trim()};
+  if(!c.name){alert('Please enter a name.');return;}
+  if(editingContact){contacts=contacts.map(x=>x.id===editingContact?c:x);}
+  else{contacts.push(c);}
+  save();closeModal();renderContacts();
 }
 
 function editOrder(id){editingOrder=id;showOrderModal(orders.find(x=>x.id===id));}
 function editTask(id){editingTask=id;showTaskModal(tasks.find(x=>x.id===id));}
 function editIng(id){editingIng=id;showIngModal(ingredients.find(x=>x.id===id));}
 function editRecipe(id){editingRecipe=id;showRecipeModal(recipes.find(x=>x.id===id));}
+function editContact(id){editingContact=id;showContactModal(contacts.find(x=>x.id===id));}
 
 function deleteOrder(id){if(confirm('Delete this order?')){orders=orders.filter(x=>x.id!==id);save();renderOrders();}}
 function deleteTask(id){if(confirm('Delete this task?')){tasks=tasks.filter(x=>x.id!==id);save();renderSchedule();}}
 function deleteIng(id){ingredients=ingredients.filter(x=>x.id!==id);save();renderIngredients();}
 function deleteRecipe(id){if(confirm('Delete this recipe?')){recipes=recipes.filter(x=>x.id!==id);save();renderRecipes();}}
+function deleteContact(id){if(confirm('Delete this contact?')){contacts=contacts.filter(x=>x.id!==id);save();renderContacts();}}
+function deleteHistory(id){if(confirm('Delete from history?')){history=history.filter(x=>x.id!==id);save();renderHistory();}}
 
 function markPaid(id){orders=orders.map(o=>o.id===id?{...o,status:'paid'}:o);save();renderOrders();}
 function toggleTask(id){tasks=tasks.map(t=>t.id===id?{...t,done:!t.done}:t);save();renderSchedule();}
@@ -577,9 +797,10 @@ function clearChecked(){ingredients=ingredients.filter(i=>!i.checked);save();ren
 function clearAll(){if(confirm('Clear all items?')){ingredients=[];save();renderIngredients();}}
 
 document.getElementById('name-toggle').checked=showName;
+checkAutoHistory();
 populateCalcSelects();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js');}
-renderOrders();renderSchedule();renderIngredients();renderRecipes();
+renderOrders();renderSchedule();renderIngredients();renderRecipes();renderHistory();renderContacts();
 </script>
 </body>
 </html>
