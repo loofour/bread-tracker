@@ -463,6 +463,7 @@ function renderContacts(){
         <div class="contact-name">${c.name}</div>
         <div class="contact-sub">${c.phone}${c.waName?' · WA: '+c.waName:''}${c.tngName?' · T&G: '+c.tngName:''}</div>
         ${c.address?`<div class="contact-sub">${c.address}</div>`:''}
+        ${(()=>{const bought=[...orders,...history].filter(o=>o.phone===c.phone||o.name===c.name);const codes=[...new Set(bought.flatMap(o=>(o.items||[]).map(i=>i.code)))];return codes.length?`<div class="contact-sub" style="color:#1a73e8">Bought: ${codes.join(', ')}</div>`:''})()}
       </div>
       <button class="btn" style="padding:4px 10px;font-size:12px" onclick="editContact(${c.id})">Edit</button>
       <button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="deleteContact(${c.id})">✕</button>
@@ -739,8 +740,14 @@ function saveOrder(){
     notes:document.getElementById('f-notes').value.trim(),
   };
   if(!o.name){alert('Please fill in customer name.');return;}
-  if(editingOrder){orders=orders.map(x=>x.id===editingOrder?o:x);}
-  else{orders.push(o);}
+if(editingOrder){orders=orders.map(x=>x.id===editingOrder?o:x);}
+  else{
+    orders.push(o);
+    const existing=contacts.find(c=>c.phone===o.phone||c.name===o.name);
+    if(!existing){
+      contacts.push({id:nextContactId++,name:o.name,phone:o.phone,waName:'',tngName:'',address:o.address});
+    }
+  }
   save();closeModal();renderOrders();
 }
 
