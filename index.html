@@ -362,6 +362,7 @@ function orderCardHTML(o, isHistory){
       ${isHistory?`<button class="btn btn-danger" onclick="deleteHistory(${o.id})">Delete</button>`:''}
       </div>
     </div>`;
+}
 
 function renderOrders(){
   const q=document.getElementById('search').value.toLowerCase();
