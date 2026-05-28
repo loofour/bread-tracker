@@ -7,7 +7,6 @@
   <title>大叔面包</title>
   <link rel="manifest" href="manifest.json">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#111;max-width:600px;margin:0 auto;padding-bottom:70px}
@@ -215,9 +214,6 @@
 </div>
 
 <script>
-const SUPABASE_URL = 'https://oimugsikmaedswjrqcwy.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_WDpxlIzvMa7s1Lbfv_luOg_IP7YoHcg';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const MENU=[
   {code:'A1',name:'Artisan White Sourdough',price:18},
   {code:'A2',name:'Rye Sourdough',price:20},
@@ -252,29 +248,18 @@ let showName=localStorage.getItem('bread-showname')==='true';
 const titles={orders:'大叔面包',daily:'Daily View',schedule:'Schedule',ingredients:'Ingredients',history:'History',contacts:'Contacts'};
 
 function save(){
+  localStorage.setItem('bread-orders',JSON.stringify(orders));
+  localStorage.setItem('bread-history',JSON.stringify(history));
+  localStorage.setItem('bread-tasks',JSON.stringify(tasks));
+  localStorage.setItem('bread-ingredients',JSON.stringify(ingredients));
+  localStorage.setItem('bread-recipes',JSON.stringify(recipes));
+  localStorage.setItem('bread-contacts',JSON.stringify(contacts));
+  localStorage.setItem('bread-oid',nextOrderId.toString());
+  localStorage.setItem('bread-tid',nextTaskId.toString());
+  localStorage.setItem('bread-iid',nextIngId.toString());
+  localStorage.setItem('bread-rid',nextRecipeId.toString());
+  localStorage.setItem('bread-cid',nextContactId.toString());
   localStorage.setItem('bread-showname',showName);
-}
-
-async function syncToSupabase(table, data){
-  await db.from(table).upsert(data);
-}
-
-async function loadFromSupabase(){
-  const [o,h,t,i,r,c] = await Promise.all([
-    db.from('orders').select('*'),
-    db.from('history').select('*'),
-    db.from('tasks').select('*'),
-    db.from('ingredients').select('*'),
-    db.from('recipes').select('*'),
-    db.from('contacts').select('*'),
-  ]);
-  orders=o.data||[];
-  history=h.data||[];
-  tasks=t.data||[];
-  ingredients=i.data||[];
-  recipes=r.data||[];
-  contacts=c.data||[];
-  renderOrders();renderSchedule();renderIngredients();renderRecipes();renderHistory();renderContacts();
 }
 
 function checkAutoHistory(){
@@ -756,7 +741,7 @@ function saveOrder(){
     notes:document.getElementById('f-notes').value.trim(),
   };
   if(!o.name){alert('Please fill in customer name.');return;}
-if(editingOrder){orders=orders.map(x=>x.id===editingOrder?o:x);}
+  if(editingOrder){orders=orders.map(x=>x.id===editingOrder?o:x);}
   else{
     orders.push(o);
     const existing=contacts.find(c=>c.phone===o.phone||c.name===o.name);
@@ -764,7 +749,7 @@ if(editingOrder){orders=orders.map(x=>x.id===editingOrder?o:x);}
       contacts.push({id:nextContactId++,name:o.name,phone:o.phone,waName:'',tngName:'',address:o.address});
     }
   }
-  save();syncToSupabase('orders',orders);syncToSupabase('contacts',contacts);closeModal();renderOrders();renderContacts();
+  save();closeModal();renderOrders();renderContacts();
 }
 
 function saveTask(){
@@ -772,7 +757,7 @@ function saveTask(){
   if(!t.title){alert('Please enter a task name.');return;}
   if(editingTask){const old=tasks.find(x=>x.id===editingTask);t.done=old?old.done:false;tasks=tasks.map(x=>x.id===editingTask?t:x);}
   else{tasks.push(t);}
-save();syncToSupabase('tasks',tasks);closeModal();renderSchedule();
+  save();closeModal();renderSchedule();
 }
 
 function saveIng(){
@@ -780,7 +765,7 @@ function saveIng(){
   if(!i.name){alert('Please enter ingredient name.');return;}
   if(editingIng){const old=ingredients.find(x=>x.id===editingIng);i.checked=old?old.checked:false;ingredients=ingredients.map(x=>x.id===editingIng?i:x);}
   else{ingredients.push(i);}
- save();syncToSupabase('ingredients',ingredients);closeModal();renderIngredients();
+  save();closeModal();renderIngredients();
 }
 
 function saveRecipe(){
@@ -789,7 +774,7 @@ function saveRecipe(){
   const r={id:editingRecipe||nextRecipeId++,code:code,breadName:menuItem?menuItem.name:code,ingredients:document.getElementById('r-ing').value.trim()};
   if(editingRecipe){recipes=recipes.map(x=>x.id===editingRecipe?r:x);}
   else{const existing=recipes.find(x=>x.code===code);if(existing){recipes=recipes.map(x=>x.code===code?r:x);}else{recipes.push(r);}}
- save();syncToSupabase('recipes',recipes);closeModal();renderRecipes();
+  save();closeModal();renderRecipes();
 }
 
 function saveContact(){
@@ -797,7 +782,7 @@ function saveContact(){
   if(!c.name){alert('Please enter a name.');return;}
   if(editingContact){contacts=contacts.map(x=>x.id===editingContact?c:x);}
   else{contacts.push(c);}
-save();syncToSupabase('contacts',contacts);closeModal();renderContacts();
+  save();closeModal();renderContacts();
 }
 
 function editOrder(id){editingOrder=id;showOrderModal(orders.find(x=>x.id===id));}
@@ -806,23 +791,24 @@ function editIng(id){editingIng=id;showIngModal(ingredients.find(x=>x.id===id));
 function editRecipe(id){editingRecipe=id;showRecipeModal(recipes.find(x=>x.id===id));}
 function editContact(id){editingContact=id;showContactModal(contacts.find(x=>x.id===id));}
 
-function deleteOrder(id){if(confirm('Delete this order?')){orders=orders.filter(x=>x.id!==id);save();syncToSupabase('orders',orders);renderOrders();}}
-function deleteTask(id){if(confirm('Delete this task?')){tasks=tasks.filter(x=>x.id!==id);save();syncToSupabase('tasks',tasks);renderSchedule();}}
-function deleteIng(id){ingredients=ingredients.filter(x=>x.id!==id);save();syncToSupabase('ingredients',ingredients);renderIngredients();}
-function deleteRecipe(id){if(confirm('Delete this recipe?')){recipes=recipes.filter(x=>x.id!==id);save();syncToSupabase('recipes',recipes);renderRecipes();}}
-function deleteContact(id){if(confirm('Delete this contact?')){contacts=contacts.filter(x=>x.id!==id);save();syncToSupabase('contacts',contacts);renderContacts();}}
-function deleteHistory(id){if(confirm('Delete from history?')){history=history.filter(x=>x.id!==id);save();syncToSupabase('history',history);renderHistory();}}
-function markPaid(id){orders=orders.map(o=>o.id===id?{...o,status:'paid'}:o);save();syncToSupabase('orders',orders);renderOrders();}
-function markComplete(id){if(confirm('Move this order to history?')){const o=orders.find(x=>x.id===id);if(o){history.push({...o,completedAt:new Date().toISOString()});orders=orders.filter(x=>x.id!==id);save();syncToSupabase('orders',orders);syncToSupabase('history',history);renderOrders();renderHistory();}}}
-function toggleTask(id){tasks=tasks.map(t=>t.id===id?{...t,done:!t.done}:t);save();syncToSupabase('tasks',tasks);renderSchedule();}
-function toggleIng(id){ingredients=ingredients.map(i=>i.id===id?{...i,checked:!i.checked}:i);save();syncToSupabase('ingredients',ingredients);renderIngredients();}
-function clearChecked(){ingredients=ingredients.filter(i=>!i.checked);save();syncToSupabase('ingredients',ingredients);renderIngredients();}
-function clearAll(){if(confirm('Clear all items?')){ingredients=[];save();syncToSupabase('ingredients',ingredients);renderIngredients();}}
+function deleteOrder(id){if(confirm('Delete this order?')){orders=orders.filter(x=>x.id!==id);save();renderOrders();}}
+function deleteTask(id){if(confirm('Delete this task?')){tasks=tasks.filter(x=>x.id!==id);save();renderSchedule();}}
+function deleteIng(id){ingredients=ingredients.filter(x=>x.id!==id);save();renderIngredients();}
+function deleteRecipe(id){if(confirm('Delete this recipe?')){recipes=recipes.filter(x=>x.id!==id);save();renderRecipes();}}
+function deleteContact(id){if(confirm('Delete this contact?')){contacts=contacts.filter(x=>x.id!==id);save();renderContacts();}}
+function deleteHistory(id){if(confirm('Delete from history?')){history=history.filter(x=>x.id!==id);save();renderHistory();}}
+function markPaid(id){orders=orders.map(o=>o.id===id?{...o,status:'paid'}:o);save();renderOrders();}
+function markComplete(id){if(confirm('Move this order to history?')){const o=orders.find(x=>x.id===id);if(o){history.push({...o,completedAt:new Date().toISOString()});orders=orders.filter(x=>x.id!==id);save();renderOrders();renderHistory();}}}
+function toggleTask(id){tasks=tasks.map(t=>t.id===id?{...t,done:!t.done}:t);save();renderSchedule();}
+function toggleIng(id){ingredients=ingredients.map(i=>i.id===id?{...i,checked:!i.checked}:i);save();renderIngredients();}
+function clearChecked(){ingredients=ingredients.filter(i=>!i.checked);save();renderIngredients();}
+function clearAll(){if(confirm('Clear all items?')){ingredients=[];save();renderIngredients();}}
 
 document.getElementById('name-toggle').checked=showName;
+checkAutoHistory();
 populateCalcSelects();
+renderOrders();renderSchedule();renderIngredients();renderRecipes();renderHistory();renderContacts();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js');}
-loadFromSupabase();
 </script>
 </body>
 </html>
