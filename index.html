@@ -362,33 +362,6 @@ function orderCardHTML(o, isHistory){
       ${isHistory?`<button class="btn btn-danger" onclick="deleteHistory(${o.id})">Delete</button>`:''}
       </div>
     </div>`;
-}
-
-  return `
-    <div class="card">
-      <div class="card-header">
-        <div class="avatar">${initials(o.name)}</div>
-        <div><div class="card-name">${o.name}</div><div class="card-sub">${o.phone}</div></div>
-        <span class="badge ${o.status}">${o.status} · ${payBadge}</span>
-      </div>
-      <div class="card-body">
-        <div style="grid-column:1/-1"><div class="field-label">Bread order</div><div class="field-val">${breadStr}</div></div>
-        <div><div class="field-label">Total price</div><div class="field-val">RM ${(o.totalPrice||0).toFixed(2)}</div></div>
-        <div><div class="field-label">Date & Time</div><div class="field-val">${o.date} ${o.time}</div></div>
-        <div style="grid-column:1/-1"><div class="field-label">Address</div><div class="field-val">${o.address}</div></div>
-        ${o.notes?`<div style="grid-column:1/-1"><div class="field-label">Notes</div><div class="field-val" style="color:#888">${o.notes}</div></div>`:''}
-        ${receiptHtml}
-      </div>
-      <div class="card-footer">
-      ${!isHistory&&o.status==='unpaid'?`<button class="btn btn-success" onclick="markPaid(${o.id})">Mark paid</button>`:''}
-      ${!isHistory?`<button class="btn btn-warn" onclick="markComplete(${o.id})">Mark complete</button>`:''}
-      ${!isHistory?`<button class="btn" onclick="editOrder(${o.id})">Edit</button>`:''}
-      ${!isHistory?`<button class="btn btn-danger" onclick="deleteOrder(${o.id})">Delete</button>`:''}
-      ${isHistory?`<button class="btn btn-danger" onclick="deleteHistory(${o.id})">Delete</button>`:''}
-      ${isHistory?`<button class="btn btn-primary" onclick="triggerUpload(${o.id})">${o.receiptUrl ? 'Replace' : 'Upload'} Receipt</button>`:''}
-      </div>
-    </div>`;
-}
 
 function renderOrders(){
   const q=document.getElementById('search').value.toLowerCase();
